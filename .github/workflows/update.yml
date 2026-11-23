@@ -1,0 +1,40 @@
+name: Aggiorna dati NBA
+on:
+  schedule:
+    - cron: "30 8 * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: aggiorna-dati
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests
+      - name: Scarica i dati
+        id: dl
+        run: python update_data.py
+        continue-on-error: true
+      - name: Salva i dati
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add data/games.json
+          if git diff --cached --quiet; then
+            echo "Nessuna modifica"
+          else
+            git commit -m "Aggiorna dati NBA"
+            git pull --rebase origin main
+            git push
+          fi
+      - name: Esito
+        if: steps.dl.outcome == 'failure'
+        run: |
+          echo "Lo script ha avuto un errore: guarda il passaggio Scarica i dati"
+          exit 1
