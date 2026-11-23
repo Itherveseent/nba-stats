@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Hit Rate – quante volte supera la soglia</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef1f4;--surface:#fff;--ink:#14213d;--muted:#5b6578;--line:#d5dbe3;--accent:#c8102e;--hl:#fff4e2;--good:#1f9d62;--miss:#c3cad6}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0f1624;--surface:#17213a;--ink:#e8edf6;--muted:#97a3bb;--line:#2b3753;--accent:#ff4d63;--hl:#222c47;--good:#3ed598;--miss:#3a4668}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Barlow,system-ui,sans-serif}
+main{max-width:1000px;margin:0 auto;padding:24px 16px 48px}
+h1{font:700 clamp(2.2rem,7vw,3.6rem)/1 "Barlow Condensed",Impact,sans-serif;margin:8px 0 6px}
+h2{font:700 1.6rem "Barlow Condensed",sans-serif;margin:28px 0 10px}
+.sub,.note{color:var(--muted)}.sub{max-width:62ch;margin:0 0 8px}.note{font-size:.9rem}
+.row{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:end}
+label{display:flex;flex-direction:column;font-size:.85rem;color:var(--muted);gap:2px}
+input,select,button{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);padding:8px 12px;border-radius:4px}
+input[type=number]{width:100px}input[type=search]{min-width:200px}
+button{cursor:pointer}button:hover{border-color:var(--accent)}
+button[aria-pressed=true]{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line)}
+table{border-collapse:collapse;width:100%;min-width:600px}
+th,td{padding:8px 12px;text-align:right;white-space:nowrap}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left}
+th{font:600 1.05rem "Barlow Condensed",sans-serif;border-bottom:2px solid var(--ink)}
+tbody tr{border-bottom:1px solid var(--line);cursor:pointer}tbody tr:hover,tbody tr.on{background:var(--hl)}
+td.hot{color:var(--good);font-weight:600}td.cold{color:var(--accent)}
+.detail{background:var(--surface);border:1px solid var(--line);border-left:5px solid var(--accent);padding:14px 16px;margin-bottom:16px}
+.detail h3{font:700 1.5rem "Barlow Condensed",sans-serif;margin:0}
+.chart{position:relative;height:150px;display:flex;align-items:flex-end;gap:4px;margin:26px 0 22px;border-bottom:1px solid var(--line)}
+.bar{flex:1;position:relative;min-width:6px;background:var(--miss);border-radius:2px 2px 0 0}
+.bar.h{background:var(--good)}
+.bar i{position:absolute;top:-18px;left:0;right:0;text-align:center;font:normal .75rem Barlow;color:var(--muted)}
+.bar u{position:absolute;bottom:-18px;left:0;right:0;text-align:center;font:normal .65rem Barlow;color:var(--muted);text-decoration:none;overflow:hidden}
+.ln{position:absolute;left:0;right:0;border-top:2px dashed var(--accent);pointer-events:none}
+.stats{display:flex;flex-wrap:wrap;gap:20px;margin-top:6px}.stats div{font-size:.95rem}.stats b{display:block;font:700 1.5rem "Barlow Condensed",sans-serif}
+.empty{padding:24px;text-align:center;color:var(--muted)}
+</style>
+</head>
+<body>
+<main>
+<h1>NBA Hit Rate</h1>
+<p class="sub">Scegli una statistica e una soglia: vedi quante volte ogni giocatore l’ha superata nelle ultime partite.</p>
+<p class="note" id="upd"></p>
+
+<h2>Partite in programma</h2>
+<div class="row" id="up"></div>
+<p class="note" id="upn"></p>
+
+<h2>Cerca per soglia</h2>
+<div class="row">
+<label>Statistica<select id="st"></select></label>
+<label>Soglia (supera)<input type="number" id="ln" step="0.5" min="0"></label>
+<label>Ordina per<select id="win"><option value="comb">Combinato</option><option value="5">Ultime 5</option><option value="10">Ultime 10</option><option value="tot">Totale</option><option value="h2h">Contro l’avversario</option></select></label>
+<label>Giocatore<input type="search" id="q" placeholder="Cerca per nome"></label>
+</div>
+<div id="detail"></div>
+<div class="wrap"><table><thead><tr><th>Giocatore</th><th>Sq.</th><th>PG</th><th>Media</th><th>Ultime 5</th><th>Ultime 10</th><th>Totale</th><th>Contro il prossimo avversario</th><th>Combinato</th></tr></thead><tbody id="body"></tbody></table></div>
+<p class="note">Tocca un giocatore per vedere partita per partita e scegliere contro quale squadra confrontarlo. “Totale” comprende tutte le partite scaricate, anche della stagione scorsa. “Combinato” è la media delle percentuali disponibili (ultime 5, ultime 10, totale, contro l’avversario). Contano solo le partite giocate, servono almeno 5 partite, e una partita uguale alla soglia non viene contata. Per doppia e tripla doppia la soglia non serve. Sono statistiche passate: non garantiscono nulla sulle partite future.</p>
+</main>
+<script>
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var rome=function(d,o){return new Date(d).toLocaleString("it-IT",Object.assign({timeZone:"Europe/Rome"},o))};
+var STATS={pts:"Punti",reb:"Rimbalzi",ast:"Assist",stl:"Recuperi",blk:"Stoppate",tov:"Palle perse",tpm:"Triple",ptr:"Punti+Rimbalzi",pta:"Punti+Assist",rpa:"Rimbalzi+Assist",pra:"Punti+Rimbalzi+Assist",dd:"Doppia doppia",td:"Tripla doppia"};
+var DEF={pts:24.5,reb:7.5,ast:5.5,stl:1.5,blk:1.5,tov:2.5,tpm:2.5,ptr:32.5,pta:29.5,rpa:12.5,pra:35.5,dd:0.5,td:0.5};
+var logs={},up=[],on={},nextOpp={},allTeams=[],st="pts",sel=null,oppSel="";
+$("st").innerHTML=Object.keys(STATS).map(function(k){return '<option value="'+k+'">'+STATS[k]+"</option>"}).join("");
+$("ln").value=DEF.pts;
+var isBool=function(s){return s==="dd"||s==="td"};
+
+fetch("data/games.json").then(function(r){return r.json()}).then(function(d){
+  var gs=Object.keys(d.games).map(function(k){return d.games[k]}).sort(function(a,b){return a.date<b.date?-1:1}),ts={};
+  gs.forEach(function(g){ts[g.home.t]=ts[g.away.t]=1;g.players.forEach(function(p){
+    var home=p.t===g.home.t,c=[p.pts,p.reb,p.ast,p.stl,p.blk].filter(function(x){return x>=10}).length,a=logs[p.n]=logs[p.n]||{n:p.n,t:p.t,g:[]};
+    a.t=p.t;a.g.push({d:g.date,opp:home?g.away.t:g.home.t,home:home,pts:p.pts,reb:p.reb,ast:p.ast,stl:p.stl,blk:p.blk,tov:p.tov,tpm:parseInt(p.tp)||0,ptr:p.pts+p.reb,pta:p.pts+p.ast,rpa:p.reb+p.ast,pra:p.pts+p.reb+p.ast,dd:c>=2?1:0,td:c>=3?1:0})})});
+  allTeams=Object.keys(ts).sort();
+  up=d.upcoming||[];
+  up.forEach(function(g){if(!nextOpp[g.away])nextOpp[g.away]=g.home;if(!nextOpp[g.home])nextOpp[g.home]=g.away});
+  $("upd").textContent=d.updated?"Ultimo aggiornamento: "+rome(d.updated,{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})+" (ora italiana)":"";
+  chips();render();
+}).catch(function(){$("body").innerHTML='<tr><td colspan="9" class="empty">Dati non ancora disponibili. Su GitHub apri Actions e avvia “Aggiorna dati NBA”.</td></tr>'});
+
+function chips(){
+  $("up").innerHTML=up.map(function(g,i){return '<button data-i="'+i+'" aria-pressed="'+!!on[i]+'">'+g.away+" @ "+g.home+" · "+rome(g.date,{weekday:"short",hour:"2-digit",minute:"2-digit"})+"</button>"}).join("")||'<span class="note">Nessuna partita in programma nei dati.</span>';
+  $("upn").textContent=up.length?"Tocca una partita per mostrare solo i giocatori delle due squadre.":"";
+}
+function rate(arr,line){
+  var h=0,m=0,s=st;
+  arr.forEach(function(x){if(x[s]>line)h++;else if(x[s]<line)m++});
+  return {h:h,t:h+m,p:h+m?h/(h+m):-1};
+}
+var fmt=function(r){return r.t?r.h+"/"+r.t+" ("+Math.round(r.p*100)+"%)":"–"};
+var cls=function(r){return r.p>=0.7?"hot":(r.p>=0&&r.p<=0.3?"cold":"")};
+var vsOpp=function(a,o){return a.g.filter(function(x){return x.opp===o})};
+
+function render(){
+  st=$("st").value;
+  var line=isBool(st)?0.5:(parseFloat($("ln").value)||0);
+  $("ln").disabled=isBool(st);if(isBool(st))$("ln").value=0.5;
+  var w=$("win").value,q=$("q").value.trim().toLowerCase(),teams={},any=false;
+  up.forEach(function(g,i){if(on[i]){any=true;teams[g.away]=teams[g.home]=1}});
+  var rows=Object.keys(logs).map(function(k){var a=logs[k],no=nextOpp[a.t];
+    var s=a.g.reduce(function(x,y){return x+y[st]},0),r={k:k,n:a.n,t:a.t,gp:a.g.length,avg:s/a.g.length,no:no,
+      r5:rate(a.g.slice(-5),line),r10:rate(a.g.slice(-10),line),rt:rate(a.g,line),rh:no?rate(vsOpp(a,no),line):{h:0,t:0,p:-1}};
+    var ps=[r.r5,r.r10,r.rt,r.rh].filter(function(x){return x.p>=0}).map(function(x){return x.p});
+    r.cb=ps.length?ps.reduce(function(x,y){return x+y},0)/ps.length:-1;return r})
+  .filter(function(r){return r.gp>=5&&(!any||teams[r.t])&&(!q||r.n.toLowerCase().indexOf(q)>-1)});
+  var get=function(r){return w==="5"?r.r5.p:w==="10"?r.r10.p:w==="tot"?r.rt.p:w==="h2h"?r.rh.p:r.cb};
+  rows.sort(function(a,b){return get(b)-get(a)||b.avg-a.avg});
+  $("body").innerHTML=rows.slice(0,120).map(function(r){
+    return '<tr data-k="'+esc(r.k)+'"'+(r.k===sel?' class="on"':"")+"><td>"+esc(r.n)+"</td><td>"+r.t+"</td><td>"+r.gp+"</td><td>"+r.avg.toFixed(1)+'</td><td class="'+cls(r.r5)+'">'+fmt(r.r5)+'</td><td class="'+cls(r.r10)+'">'+fmt(r.r10)+'</td><td class="'+cls(r.rt)+'">'+fmt(r.rt)+'</td><td class="'+cls(r.rh)+'">'+(r.no?"vs "+r.no+" ":"")+fmt(r.rh)+'</td><td class="'+(r.cb>=0.7?"hot":(r.cb>=0&&r.cb<=0.3?"cold":""))+'">'+(r.cb>=0?Math.round(r.cb*100)+"%":"–")+"</td></tr>"}).join("")||'<tr><td colspan="9" class="empty">Nessun giocatore trovato con questi filtri.</td></tr>';
+  detail(line);
+}
+function bars(g,line,date){
+  var max=Math.max.apply(null,g.map(function(x){return x[st]}).concat([line,1]))*1.1;
+  return '<div class="chart">'+g.map(function(x){return '<div class="bar'+(x[st]>line?" h":"")+'" style="height:'+(x[st]/max*100)+'%" title="'+(x.home?"vs ":"@ ")+x.opp+" "+rome(x.d,{day:"numeric",month:"short"})+": "+x[st]+'"><i>'+x[st]+"</i><u>"+(date?rome(x.d,{day:"numeric",month:"numeric"}):x.opp)+"</u></div>"}).join("")+'<div class="ln" style="bottom:'+(line/max*100)+'%"></div></div>';
+}
+function detail(line){
+  if(!sel||!logs[sel]){$("detail").innerHTML="";return}
+  var a=logs[sel],h=vsOpp(a,oppSel),hm=a.g.filter(function(x){return x.home}),aw=a.g.filter(function(x){return !x.home});
+  var sel2='<select id="osel" aria-label="Avversario"><option value="">Scegli avversario</option>'+allTeams.filter(function(t){return t!==a.t}).map(function(t){return "<option"+(t===oppSel?" selected":"")+">"+t+"</option>"}).join("")+"</select>";
+  $("detail").innerHTML='<div class="detail"><h3>'+esc(a.n)+" ("+a.t+") – "+STATS[st]+(isBool(st)?"":" oltre "+line)+"</h3>"+
+   bars(a.g.slice(-15),line,false)+
+   '<div class="stats"><div><b>'+fmt(rate(a.g.slice(-5),line))+'</b>ultime 5</div><div><b>'+fmt(rate(a.g.slice(-10),line))+'</b>ultime 10</div><div><b>'+fmt(rate(a.g,line))+'</b>totale</div><div><b>'+fmt(rate(hm,line))+'</b>in casa</div><div><b>'+fmt(rate(aw,line))+"</b>in trasferta</div></div>"+
+   '<p class="note">Ultime 15 partite, dalla più vecchia a sinistra. In verde quelle sopra la soglia.</p>'+
+   '<h3 style="margin-top:14px">Precedenti contro '+sel2+"</h3>"+
+   (oppSel?(h.length?bars(h.slice(-15),line,true)+'<div class="stats"><div><b>'+fmt(rate(h,line))+"</b>contro "+oppSel+"</div><div><b>"+(h.reduce(function(x,y){return x+y[st]},0)/h.length).toFixed(1)+"</b>media contro "+oppSel+"</div></div>":'<p class="note">Nessuna partita trovata contro '+oppSel+".</p>"):'<p class="note">Scegli una squadra per vedere i precedenti.</p>')+"</div>";
+}
+$("st").addEventListener("change",function(){$("ln").value=DEF[$("st").value];render()});
+["ln","win","q"].forEach(function(id){$(id).addEventListener("input",render)});
+$("up").addEventListener("click",function(e){var i=e.target.dataset.i;if(i===undefined)return;on[i]=!on[i];chips();render()});
+$("body").addEventListener("click",function(e){var tr=e.target.closest("tr");if(!tr||!tr.dataset.k)return;sel=tr.dataset.k;oppSel=nextOpp[logs[sel].t]||"";render();$("detail").scrollIntoView({behavior:"smooth",block:"nearest"})});
+$("detail").addEventListener("change",function(e){if(e.target.id==="osel"){oppSel=e.target.value;render()}});
+</script>
+</body>
+</html>
