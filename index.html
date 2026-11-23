@@ -77,11 +77,12 @@ td.nm{font-weight:600}
 <label>Soglia (supera)<input type="number" id="ln" step="0.5" min="0"></label>
 <label>Ordina per<select id="win"><option value="comb">Combinato</option><option value="5">Ultime 5</option><option value="10">Ultime 10</option><option value="tot">Totale</option><option value="h2h">Contro l’avversario</option></select></label>
 <label>Giocatore<input type="search" id="q" placeholder="Cerca per nome"></label>
+<label>Linea realistica<select id="rm"><option value="35">Stretta</option><option value="55" selected>Normale</option><option value="999">Disattivata</option></select></label>
 </div>
 </div>
 <div id="detail"></div>
 <div class="wrap"><table><thead><tr><th>Giocatore</th><th>Sq.</th><th>PG</th><th>Media</th><th>Ultime 5</th><th>Ultime 10</th><th>Totale</th><th>Contro il prossimo avversario</th><th>Combinato</th></tr></thead><tbody id="body"></tbody></table></div>
-<p class="note">Tocca un giocatore per vedere partita per partita e scegliere contro quale squadra confrontarlo. “Totale” comprende tutte le partite scaricate, anche della stagione scorsa. “Combinato” è la media delle percentuali disponibili (ultime 5, ultime 10, totale, contro l’avversario). Contano solo le partite giocate, servono almeno 5 partite, e una partita uguale alla soglia non viene contata. Per doppia e tripla doppia la soglia non serve. Sono statistiche passate: non garantiscono nulla sulle partite future.</p>
+<p class="note">Tocca un giocatore per vedere partita per partita e scegliere contro quale squadra confrontarlo. “Totale” comprende tutte le partite scaricate, anche della stagione scorsa. “Combinato” è la media delle percentuali disponibili (ultime 5, ultime 10, totale, contro l’avversario). “Linea realistica” nasconde i giocatori per cui la soglia scelta è troppo lontana dalla loro media (per esempio 24,5 punti per Dončić o Shai, che ne fanno molti di più): per loro quel numero non rispecchia una vera linea da scommessa, va alzata per avere un confronto sensato. Contano solo le partite giocate, servono almeno 5 partite, e una partita uguale alla soglia non viene contata. Per doppia e tripla doppia la soglia non serve. Sono statistiche passate: non garantiscono nulla sulle partite future.</p>
 </main>
 <script>
 var $=function(id){return document.getElementById(id)};
@@ -133,7 +134,8 @@ function render(){
       r5:rate(a.g.slice(-5),line),r10:rate(a.g.slice(-10),line),rt:rate(a.g,line),rh:no?rate(vsOpp(a,no),line):{h:0,t:0,p:-1}};
     var ps=[r.r5,r.r10,r.rt,r.rh].filter(function(x){return x.p>=0}).map(function(x){return x.p});
     r.cb=ps.length?ps.reduce(function(x,y){return x+y},0)/ps.length:-1;return r})
-  .filter(function(r){return r.gp>=5&&(!any||teams[r.t])&&(!q||r.n.toLowerCase().indexOf(q)>-1)});
+  .filter(function(r){return r.gp>=5&&(!any||teams[r.t])&&(!q||r.n.toLowerCase().indexOf(q)>-1)})
+  .filter(function(r){if(isBool(st))return true;var m=+$("rm").value;if(m>=999)return true;return Math.abs(r.avg-line)<=Math.max(line,1)*(m/100)});
   var get=function(r){return w==="5"?r.r5.p:w==="10"?r.r10.p:w==="tot"?r.rt.p:w==="h2h"?r.rh.p:r.cb};
   rows.sort(function(a,b){return get(b)-get(a)||b.avg-a.avg});
   $("body").innerHTML=rows.slice(0,120).map(function(r){
@@ -159,7 +161,7 @@ function detail(line){
 function stchips(){$("stc").innerHTML=Object.keys(STATS).map(function(k){return '<button data-s="'+k+'" aria-pressed="'+(k===$("st").value)+'">'+STATS[k]+"</button>"}).join("")}
 stchips();
 $("stc").addEventListener("click",function(e){var k=e.target.dataset.s;if(!k)return;$("st").value=k;$("ln").value=DEF[k];stchips();render()});
-["ln","win","q"].forEach(function(id){$(id).addEventListener("input",render)});
+["ln","win","q","rm"].forEach(function(id){$(id).addEventListener("input",render)});
 $("up").addEventListener("click",function(e){var i=e.target.dataset.i;if(i===undefined)return;on[i]=!on[i];chips();render()});
 $("body").addEventListener("click",function(e){var tr=e.target.closest("tr");if(!tr||!tr.dataset.k)return;sel=tr.dataset.k;oppSel=nextOpp[logs[sel].t]||"";render();$("detail").scrollIntoView({behavior:"smooth",block:"nearest"})});
 $("detail").addEventListener("change",function(e){if(e.target.id==="osel"){oppSel=e.target.value;render()}});
