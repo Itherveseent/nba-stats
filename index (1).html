@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NBA Hit Rate – quante volte supera la soglia</title>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#eef2f8;--s1:#fff;--s2:#f3f6fc;--ink:#0f1b34;--muted:#5f6d88;--line:#d9e0ee;--accent:#d9772b;--ink-on:#fff;--bar:#cbd4e6;--hl:34%}
+@media (prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#0b1324;--s1:#121c33;--s2:#18243f;--ink:#eef2fa;--muted:#94a1bd;--line:#26345a;--accent:#f0a24b;--ink-on:#1a1204;--bar:#2e3d63;--hl:64%}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Barlow,system-ui,sans-serif}
+main{max-width:1040px;margin:0 auto;padding:0 16px 56px}
+.hero{position:relative;overflow:hidden;padding:40px 0 20px}
+.hero svg{position:absolute;right:-40px;top:-30px;width:300px;height:300px;color:var(--accent);opacity:.22;pointer-events:none}
+h1{font:800 clamp(2.8rem,9vw,5rem)/.95 "Big Shoulders Display",Impact,sans-serif;margin:0 0 10px;letter-spacing:.01em;position:relative}
+h2{font:800 1.7rem "Big Shoulders Display",sans-serif;margin:34px 0 12px;display:flex;align-items:center;gap:10px}
+h2::before{content:"";width:6px;height:1.1em;background:var(--accent);border-radius:3px}
+.sub{max-width:56ch;margin:0 0 6px;color:var(--muted);font-size:1.05rem;position:relative}
+.note{color:var(--muted);font-size:.88rem}
+.row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:end}
+.panel{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+label{display:flex;flex-direction:column;font-size:.8rem;color:var(--muted);gap:3px;font-weight:500}
+input,select,button{font:inherit;color:var(--ink);background:var(--s2);border:1px solid var(--line);padding:8px 12px;border-radius:10px}
+input[type=number]{width:100px}input[type=search]{min-width:200px}
+button{cursor:pointer;transition:background .15s,border-color .15s}
+button:hover{border-color:var(--accent)}
+button[aria-pressed=true]{background:var(--accent);color:var(--ink-on);border-color:var(--accent);font-weight:600}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tb{display:inline-block;min-width:32px;text-align:center;padding:0 5px;border-radius:5px;font:700 .72rem "Big Shoulders Display";letter-spacing:.04em;background:hsl(var(--t) 55% 45%);color:#fff}
+.wrap{overflow-x:auto;background:var(--s1);border:1px solid var(--line);border-radius:14px}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:.9rem}
+th,td{padding:4px 8px;text-align:center;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{font:700 .78rem Barlow;color:var(--muted);background:var(--s2);border-bottom:1px solid var(--line);position:sticky;top:0}
+tbody tr{border-bottom:1px solid var(--line);cursor:pointer}
+tbody tr:hover{background:var(--s2)}tbody tr.on{background:var(--s2);box-shadow:inset 4px 0 var(--accent)}
+td.nm{font-weight:600}
+.pill{display:inline-block;padding:1px 7px;border-radius:999px;font-variant-numeric:tabular-nums;font-size:.8rem;background:hsl(var(--h) 65% 50%/.18);color:hsl(var(--h) 70% var(--hl))}
+.pill b{font-weight:700}.pill.none{background:none;color:var(--muted)}
+.gauge{display:inline-block;width:36px;height:6px;border-radius:4px;background:var(--bar);vertical-align:middle;overflow:hidden;margin-right:5px}
+.gauge i{display:block;height:100%;background:hsl(var(--h) 65% 50%)}
+.detail{background:var(--s1);border:1px solid var(--line);border-radius:14px;padding:18px;margin-bottom:16px;border-top:4px solid var(--accent)}
+.detail h3{font:800 1.5rem "Big Shoulders Display",sans-serif;margin:0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chart{position:relative;height:170px;display:flex;align-items:flex-end;gap:5px;margin:30px 0 26px;border-bottom:1px solid var(--line)}
+.bar{flex:1;position:relative;min-width:8px;background:var(--bar);border-radius:5px 5px 0 0}
+.bar.h{background:linear-gradient(hsl(150 62% 52%),hsl(150 62% 38%))}
+.bar i{position:absolute;top:-19px;left:-4px;right:-4px;text-align:center;font:700 .78rem Barlow;font-style:normal;color:var(--muted)}
+.bar u{position:absolute;bottom:-19px;left:-4px;right:-4px;text-align:center;font:500 .66rem Barlow;color:var(--muted);text-decoration:none;overflow:hidden}
+.ln{position:absolute;left:0;right:0;border-top:2px dashed var(--accent);pointer-events:none}
+.ln em{position:absolute;right:0;top:-20px;font:700 .75rem Barlow;font-style:normal;background:var(--accent);color:var(--ink-on);padding:0 6px;border-radius:4px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin-top:6px}
+.tile{background:var(--s2);border-radius:10px;padding:10px 12px;border-bottom:3px solid hsl(var(--h) 65% 50%)}
+.tile b{display:block;font:800 2rem/1 "Big Shoulders Display",sans-serif;color:hsl(var(--h) 70% var(--hl))}
+.tile span{font-size:.8rem;color:var(--muted)}
+.empty{padding:28px;text-align:center;color:var(--muted)}
+@media (max-width:600px){.hero svg{opacity:.12}}
+</style>
+</head>
+<body>
+<main>
+<header class="hero">
+<svg viewBox="0 0 200 200" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true"><circle cx="100" cy="100" r="92"/><path d="M8 100h184M100 8v184"/><circle cx="100" cy="100" r="34"/><path d="M30 30c40 50 100 50 140 0"/></svg>
+<h1>NBA Hit Rate</h1>
+<p class="sub">Scegli una statistica e una soglia: vedi quante volte ogni giocatore l’ha superata, e come va contro la squadra che affronta.</p>
+<p class="note" id="upd"></p>
+</header>
+<h2>Partite in programma</h2>
+<div class="row" id="up"></div>
+<p class="note" id="upn"></p>
+
+<h2>Cerca per soglia</h2>
+<div class="panel">
+<div class="row" id="stc" role="group" aria-label="Statistica"></div>
+<div class="row">
+<select id="st" hidden></select>
+<label>Soglia (supera)<input type="number" id="ln" step="0.5" min="0"></label>
+<label>Ordina per<select id="win"><option value="comb">Combinato</option><option value="5">Ultime 5</option><option value="10">Ultime 10</option><option value="tot">Totale</option><option value="h2h">Contro l’avversario</option></select></label>
+<label>Giocatore<input type="search" id="q" placeholder="Cerca per nome"></label>
+</div>
+</div>
+<div id="detail"></div>
+<div class="wrap"><table><thead><tr><th>Giocatore</th><th>Sq.</th><th>PG</th><th>Media</th><th>Ultime 5</th><th>Ultime 10</th><th>Totale</th><th>Contro il prossimo avversario</th><th>Combinato</th></tr></thead><tbody id="body"></tbody></table></div>
+<p class="note">Tocca un giocatore per vedere partita per partita e scegliere contro quale squadra confrontarlo. “Totale” comprende tutte le partite scaricate, anche della stagione scorsa. “Combinato” è la media delle percentuali disponibili (ultime 5, ultime 10, totale, contro l’avversario). Contano solo le partite giocate, servono almeno 5 partite, e una partita uguale alla soglia non viene contata. Per doppia e tripla doppia la soglia non serve. Sono statistiche passate: non garantiscono nulla sulle partite future.</p>
+</main>
+<script>
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})};
+var rome=function(d,o){return new Date(d).toLocaleString("it-IT",Object.assign({timeZone:"Europe/Rome"},o))};
+var STATS={pts:"Punti",reb:"Rimbalzi",ast:"Assist",stl:"Recuperi",blk:"Stoppate",tov:"Palle perse",tpm:"Triple",ptr:"Punti+Rimbalzi",pta:"Punti+Assist",rpa:"Rimbalzi+Assist",pra:"Punti+Rimbalzi+Assist",dd:"Doppia doppia",td:"Tripla doppia"};
+var DEF={pts:24.5,reb:7.5,ast:5.5,stl:1.5,blk:1.5,tov:2.5,tpm:2.5,ptr:32.5,pta:29.5,rpa:12.5,pra:35.5,dd:0.5,td:0.5};
+var logs={},up=[],on={},nextOpp={},allTeams=[],st="pts",sel=null,oppSel="";
+$("st").innerHTML=Object.keys(STATS).map(function(k){return '<option value="'+k+'">'+STATS[k]+"</option>"}).join("");
+$("ln").value=DEF.pts;
+var pill=function(r){return r.t?'<span class="pill" style="--h:'+Math.round(r.p*125)+'"><b>'+Math.round(r.p*100)+'%</b> '+r.h+'/'+r.t+"</span>":'<span class="pill none">–</span>'};
+var badge=function(t){var h=0;for(var i=0;i<t.length;i++)h=(h*31+t.charCodeAt(i))%360;return '<span class="tb" style="--t:'+h+'">'+t+"</span>"};
+var tile=function(r,l){return '<div class="tile" style="--h:'+(r.t?Math.round(r.p*125):60)+'"><b>'+(r.t?Math.round(r.p*100)+"%":"–")+"</b><span>"+(r.t?r.h+"/"+r.t+" · ":"")+l+"</span></div>"};
+var isBool=function(s){return s==="dd"||s==="td"};
+
+fetch("data/games.json").then(function(r){return r.json()}).then(function(d){
+  var gs=Object.keys(d.games).map(function(k){return d.games[k]}).sort(function(a,b){return a.date<b.date?-1:1}),ts={};
+  gs.forEach(function(g){ts[g.home.t]=ts[g.away.t]=1;g.players.forEach(function(p){
+    var home=p.t===g.home.t,c=[p.pts,p.reb,p.ast,p.stl,p.blk].filter(function(x){return x>=10}).length,a=logs[p.n]=logs[p.n]||{n:p.n,t:p.t,g:[]};
+    a.t=p.t;a.g.push({d:g.date,opp:home?g.away.t:g.home.t,home:home,pts:p.pts,reb:p.reb,ast:p.ast,stl:p.stl,blk:p.blk,tov:p.tov,tpm:parseInt(p.tp)||0,ptr:p.pts+p.reb,pta:p.pts+p.ast,rpa:p.reb+p.ast,pra:p.pts+p.reb+p.ast,dd:c>=2?1:0,td:c>=3?1:0})})});
+  allTeams=Object.keys(ts).sort();
+  up=d.upcoming||[];
+  up.forEach(function(g){if(!nextOpp[g.away])nextOpp[g.away]=g.home;if(!nextOpp[g.home])nextOpp[g.home]=g.away});
+  $("upd").textContent=d.updated?"Ultimo aggiornamento: "+rome(d.updated,{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit"})+" (ora italiana)":"";
+  chips();render();
+}).catch(function(){$("body").innerHTML='<tr><td colspan="9" class="empty">Dati non ancora disponibili. Su GitHub apri Actions e avvia “Aggiorna dati NBA”.</td></tr>'});
+
+function chips(){
+  $("up").innerHTML=up.map(function(g,i){return '<button data-i="'+i+'" aria-pressed="'+!!on[i]+'">'+g.away+" @ "+g.home+" · "+rome(g.date,{weekday:"short",hour:"2-digit",minute:"2-digit"})+"</button>"}).join("")||'<span class="note">Nessuna partita in programma nei dati.</span>';
+  $("upn").textContent=up.length?"Tocca una partita per mostrare solo i giocatori delle due squadre.":"";
+}
+function rate(arr,line){
+  var h=0,m=0,s=st;
+  arr.forEach(function(x){if(x[s]>line)h++;else if(x[s]<line)m++});
+  return {h:h,t:h+m,p:h+m?h/(h+m):-1};
+}
+var fmt=function(r){return r.t?r.h+"/"+r.t+" ("+Math.round(r.p*100)+"%)":"–"};
+var cls=function(r){return r.p>=0.7?"hot":(r.p>=0&&r.p<=0.3?"cold":"")};
+var vsOpp=function(a,o){return a.g.filter(function(x){return x.opp===o})};
+
+function render(){
+  st=$("st").value;
+  var line=isBool(st)?0.5:(parseFloat($("ln").value)||0);
+  $("ln").disabled=isBool(st);if(isBool(st))$("ln").value=0.5;
+  var w=$("win").value,q=$("q").value.trim().toLowerCase(),teams={},any=false;
+  up.forEach(function(g,i){if(on[i]){any=true;teams[g.away]=teams[g.home]=1}});
+  var rows=Object.keys(logs).map(function(k){var a=logs[k],no=nextOpp[a.t];
+    var s=a.g.reduce(function(x,y){return x+y[st]},0),r={k:k,n:a.n,t:a.t,gp:a.g.length,avg:s/a.g.length,no:no,
+      r5:rate(a.g.slice(-5),line),r10:rate(a.g.slice(-10),line),rt:rate(a.g,line),rh:no?rate(vsOpp(a,no),line):{h:0,t:0,p:-1}};
+    var ps=[r.r5,r.r10,r.rt,r.rh].filter(function(x){return x.p>=0}).map(function(x){return x.p});
+    r.cb=ps.length?ps.reduce(function(x,y){return x+y},0)/ps.length:-1;return r})
+  .filter(function(r){return r.gp>=5&&(!any||teams[r.t])&&(!q||r.n.toLowerCase().indexOf(q)>-1)});
+  var get=function(r){return w==="5"?r.r5.p:w==="10"?r.r10.p:w==="tot"?r.rt.p:w==="h2h"?r.rh.p:r.cb};
+  rows.sort(function(a,b){return get(b)-get(a)||b.avg-a.avg});
+  $("body").innerHTML=rows.slice(0,120).map(function(r){
+    var cb=r.cb>=0?'<span class="gauge"><i style="--h:'+Math.round(r.cb*125)+';width:'+Math.round(r.cb*100)+'%"></i></span><b>'+Math.round(r.cb*100)+"%</b>":"–";
+    return '<tr data-k="'+esc(r.k)+'"'+(r.k===sel?' class="on"':"")+'><td class="nm">'+esc(r.n)+"</td><td>"+badge(r.t)+"</td><td>"+r.gp+"</td><td>"+r.avg.toFixed(1)+"</td><td>"+pill(r.r5)+"</td><td>"+pill(r.r10)+"</td><td>"+pill(r.rt)+"</td><td>"+(r.no?badge(r.no)+" ":"")+pill(r.rh)+"</td><td>"+cb+"</td></tr>"}).join("")||'<tr><td colspan="9" class="empty">Nessun giocatore trovato con questi filtri.</td></tr>';
+  detail(line);
+}
+function bars(g,line,date){
+  var max=Math.max.apply(null,g.map(function(x){return x[st]}).concat([line,1]))*1.1;
+  return '<div class="chart">'+g.map(function(x){return '<div class="bar'+(x[st]>line?" h":"")+'" style="height:'+(x[st]/max*100)+'%" title="'+(x.home?"vs ":"@ ")+x.opp+" "+rome(x.d,{day:"numeric",month:"short"})+": "+x[st]+'"><i>'+x[st]+"</i><u>"+(date?rome(x.d,{day:"numeric",month:"numeric"}):x.opp)+"</u></div>"}).join("")+'<div class="ln" style="bottom:'+(line/max*100)+'%"><em>'+(isBool(st)?"sì":line)+"</em></div></div>";
+}
+function detail(line){
+  if(!sel||!logs[sel]){$("detail").innerHTML="";return}
+  var a=logs[sel],h=vsOpp(a,oppSel),hm=a.g.filter(function(x){return x.home}),aw=a.g.filter(function(x){return !x.home});
+  var sel2='<select id="osel" aria-label="Avversario"><option value="">Scegli avversario</option>'+allTeams.filter(function(t){return t!==a.t}).map(function(t){return "<option"+(t===oppSel?" selected":"")+">"+t+"</option>"}).join("")+"</select>";
+  $("detail").innerHTML='<div class="detail"><h3>'+esc(a.n)+" "+badge(a.t)+" <span class=\"note\">"+STATS[st]+(isBool(st)?"":" oltre "+line)+"</span></h3>"+
+   bars(a.g.slice(-15),line,false)+
+   '<div class="tiles">'+tile(rate(a.g.slice(-5),line),"ultime 5")+tile(rate(a.g.slice(-10),line),"ultime 10")+tile(rate(a.g,line),"totale")+tile(rate(hm,line),"in casa")+tile(rate(aw,line),"in trasferta")+"</div>"+
+   '<p class="note">Ultime 15 partite, dalla più vecchia a sinistra. In verde quelle sopra la soglia.</p>'+
+   '<h3 style="margin:16px 0 0">Precedenti contro '+sel2+"</h3>"+
+   (oppSel?(h.length?bars(h.slice(-15),line,true)+'<div class="tiles">'+tile(rate(h,line),"contro "+oppSel)+'<div class="tile" style="--h:60"><b>'+(h.reduce(function(x,y){return x+y[st]},0)/h.length).toFixed(1)+"</b><span>media contro "+oppSel+"</span></div></div>":'<p class="note">Nessuna partita trovata contro '+oppSel+".</p>"):'<p class="note">Scegli una squadra per vedere i precedenti.</p>')+"</div>";
+}
+function stchips(){$("stc").innerHTML=Object.keys(STATS).map(function(k){return '<button data-s="'+k+'" aria-pressed="'+(k===$("st").value)+'">'+STATS[k]+"</button>"}).join("")}
+stchips();
+$("stc").addEventListener("click",function(e){var k=e.target.dataset.s;if(!k)return;$("st").value=k;$("ln").value=DEF[k];stchips();render()});
+["ln","win","q"].forEach(function(id){$(id).addEventListener("input",render)});
+$("up").addEventListener("click",function(e){var i=e.target.dataset.i;if(i===undefined)return;on[i]=!on[i];chips();render()});
+$("body").addEventListener("click",function(e){var tr=e.target.closest("tr");if(!tr||!tr.dataset.k)return;sel=tr.dataset.k;oppSel=nextOpp[logs[sel].t]||"";render();$("detail").scrollIntoView({behavior:"smooth",block:"nearest"})});
+$("detail").addEventListener("change",function(e){if(e.target.id==="osel"){oppSel=e.target.value;render()}});
+</script>
+</body>
+</html>
